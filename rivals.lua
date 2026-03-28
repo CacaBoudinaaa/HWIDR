@@ -10,7 +10,7 @@ local Camera = Workspace.CurrentCamera
 
 -- ⚠️ METS ICI L'URL RAW DE TON SCRIPT (ex: raw.githubusercontent.com/...)
 -- Sans ça, l'autoload après téléportation ne fonctionnera pas.
-local SCRIPT_URL = "VOTRE_URL_RAW_ICI"
+local SCRIPT_URL = "https://raw.githubusercontent.com/CacaBoudinaaa/HWIDR/main/rivals.lua"
 local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/CacaBoudinaaa/Rayfield/refs/heads/main/RayfieldUI'))()
 
 -- ========================================
@@ -111,8 +111,7 @@ local Skeleton = {
 local SilentAim = {
    Enabled           = false,
    ShowFOV           = false,
-   FOVRadius         = 50,
-   FOVYOffset        = 0,
+   FOVRadius         = 150,
    TargetPart        = "Head",
    TargetPlayer      = nil,
    HitChance         = 100,
@@ -311,7 +310,7 @@ CombatTab:CreateToggle({
    Callback = function(v) SilentAim.NotWorkIfFlashed = v end,
 })
 CombatTab:CreateSlider({
-   Name = "Silent FOV Radius", Range = {25, 300}, Increment = 1, CurrentValue = 50, Flag = "slidefovsilent",
+   Name = "Silent FOV Radius", Range = {25, 900}, Increment = 1, CurrentValue = 150, Flag = "slidefovsilent",
    Callback = function(v)
       SilentAim.FOVRadius = math.max(v, 25)
       if fovCircle then fovCircle.Radius = SilentAim.FOVRadius end
@@ -732,16 +731,34 @@ GunTab:CreateButton({
 -- SILENT AIM LOGIC
 -- ========================================
 pcall(function()
-   if Drawing then
-      fovCircle = Drawing.new('Circle')
-      fovCircle.Thickness = 1
-      fovCircle.NumSides  = 64
-      fovCircle.Radius    = SilentAim.FOVRadius
-      fovCircle.Color     = Color3.new(1,1,1)
-      fovCircle.Filled    = false
-      fovCircle.Visible   = false
-   end
+    if Drawing then
+        fovCircle           = Drawing.new('Circle')
+        fovCircle.Thickness = 1
+        fovCircle.NumSides  = 64
+        fovCircle.Radius    = SilentAim.FOVRadius
+        fovCircle.Color     = Color3.new(1, 1, 1)
+        fovCircle.Filled    = false
+        fovCircle.Visible   = false
+    end
 end)
+
+-- Armes qui ne doivent PAS déclencher le silent aim
+local THROWABLES = {
+    ["Grenade"]           = true,
+    ["Molotov"]           = true,
+    ["Flashbang"]         = true,
+    ["Smoke Grenade"]     = true,
+    ["Satchel"]           = true,
+    ["Subspace Tripmine"] = true,
+    ["War Horn"]          = true,
+}
+
+local function isHoldingThrowable()
+    local char = LocalPlayer.Character
+    if not char then return false end
+    local tool = char:FindFirstChildOfClass("Tool")
+    return tool and THROWABLES[tool.Name] == true
+end
 
 local function getClosestTargetToCursor(radius)
     local mouse = LocalPlayer:GetMouse()
@@ -754,8 +771,8 @@ local function getClosestTargetToCursor(radius)
                 if onScreen then
                     local dist = (Vector2.new(sv.X, sv.Y) - Vector2.new(mouse.X, mouse.Y)).Magnitude
                     if dist <= closestDist then
-                        closestDist = dist
-                        closestPart = part
+                        closestDist   = dist
+                        closestPart   = part
                         closestPlayer = plr
                     end
                 end
@@ -771,29 +788,30 @@ local holdingSilent = false
 local mouse = LocalPlayer:GetMouse()
 
 mouse.Button1Down:Connect(function()
-   if not SilentAim.Enabled then return end
-   if SilentAim.NotWorkIfFlashed and Lighting:FindFirstChild("Flashbang") then return end
-   if math.random(1, 100) > SilentAim.HitChance then return end
-   holdingSilent = true
-   prevCamCFrame = Camera.CFrame
-   local _, targetPart = getClosestTargetToCursor(SilentAim.FOVRadius)
-   if targetPart then
-      Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
-   end
+    if not SilentAim.Enabled then return end
+    if isHoldingThrowable() then return end
+    if SilentAim.NotWorkIfFlashed and Lighting:FindFirstChild("Flashbang") then return end
+    if math.random(1, 100) > SilentAim.HitChance then return end
+    holdingSilent = true
+    prevCamCFrame = Camera.CFrame
+    local _, targetPart = getClosestTargetToCursor(SilentAim.FOVRadius)
+    if targetPart then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+    end
 end)
 
 mouse.Button1Up:Connect(function()
-   if holdingSilent and prevCamCFrame then Camera.CFrame = prevCamCFrame end
-   holdingSilent = false
+    if holdingSilent and prevCamCFrame then Camera.CFrame = prevCamCFrame end
+    holdingSilent = false
 end)
 
 RunService.RenderStepped:Connect(function()
-   if fovCircle then
-      fovCircle.Visible  = SilentAim.ShowFOV
-      fovCircle.Radius   = SilentAim.FOVRadius
-      local m = UserInputService:GetMouseLocation()
-      fovCircle.Position = Vector2.new(m.X, m.Y + SilentAim.FOVYOffset)
-   end
+    if fovCircle then
+        fovCircle.Visible  = SilentAim.ShowFOV
+        fovCircle.Radius   = SilentAim.FOVRadius
+        local m = UserInputService:GetMouseLocation()
+        fovCircle.Position = Vector2.new(m.X, m.Y)
+    end
 end)
 
 
